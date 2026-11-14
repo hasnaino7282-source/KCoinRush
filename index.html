@@ -1,1 +1,109 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KCoinRush</title>
+<style>
+body {
+  margin:0;
+  background:linear-gradient(150deg,#100c24,#30204c);
+  color:white;
+  font-family:Arial,sans-serif;
+  text-align:center;
+  min-height:100vh;
+}
+.container {padding:35px 15px;}
+h1 {color:#ffd34e;font-size:32px;}
+.stats {
+  display:flex;
+  justify-content:center;
+  gap:15px;
+  margin:30px auto;
+}
+.box {
+  background:#ffffff18;
+  padding:18px;
+  border-radius:15px;
+  width:130px;
+}
+.box p {color:#ffd34e;font-size:24px;margin:8px;}
+#coin {
+  width:210px;
+  height:210px;
+  border-radius:50%;
+  border:9px solid #ffdf70;
+  background:radial-gradient(circle at 35% 30%,#fff6b0,#ffce36 45%,#b87500);
+  color:#744400;
+  font-size:85px;
+  font-weight:bold;
+  box-shadow:0 0 35px #ffc83d88;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+#coin:active {transform:scale(.93);}
+button {
+  padding:12px 20px;
+  border:0;
+  border-radius:10px;
+  background:#ffc83d;
+  color:#241500;
+  font-weight:bold;
+  margin:10px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>👑 KCoinRush</h1>
+<p>Tap the golden coin and earn points!</p>
+
+<div class="stats">
+<div class="box">
+TAPS
+<p id="taps">0</p>
+</div>
+<div class="box">
+BALANCE
+<p id="balance">0</p>
+</div>
+</div>
+
+<button id="coin">₵</button>
+<h3>Tap to earn +1 KCoin</h3>
+<p id="message">Welcome to KCoinRush!</p>
+
+<button onclick="resetGame()">Reset Game</button>
+</div>
+
+<script>
+let taps = Number(localStorage.getItem("k_taps")) || 0;
+let balance = Number(localStorage.getItem("k_balance")) || 0;
+
+function update() {
+ document.getElementById("taps").innerText=taps;
+ document.getElementById("balance").innerText=balance;
+ localStorage.setItem("k_taps",taps);
+ localStorage.setItem("k_balance",balance);
+}
+
+document.getElementById("coin").onclick=function(){
+ taps++;
+ balance++;
+ document.getElementById("message").innerText="🪙 +1 KCoin earned!";
+ update();
+};
+
+function resetGame(){
+ if(confirm("Reset your game?")){
+ taps=0;
+ balance=0;
+ update();
+ }
+}
+update();
+</script>
+</body>
+  </html>
+
