@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KCoinRush</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;padding:22px 14px;background:linear-gradient(145deg,#160d35,#32105c);color:white;font-family:Arial;text-align:center}
@@ -18,16 +19,34 @@ button{border:0;border-radius:12px;padding:13px;margin:7px;font-size:15px;font-w
 .panel{margin-top:22px;padding:16px;background:#342258;border-radius:15px}
 .small{font-size:13px;color:#c9bedf}
 .row{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid #594779}
+.progress{height:13px;background:#594779;border-radius:20px;overflow:hidden;margin:12px 0}
+.progressFill{height:100%;width:0;background:#ffd447;transition:width .3s}
+.level{color:#ffd447;font-size:22px;font-weight:bold}
 </style>
 </head>
 <body>
 <div class="container">
+
 <h1>🪙 KCoinRush</h1>
 <p>Tap, collect and enjoy the game!</p>
 
-<div class="balance">Balance: <span id="balance">0</span> KCoins</div>
+<div class="balance">
+Balance: <span id="balance">0</span> KCoins
+</div>
+
 <button class="coin" onclick="tapCoin()">K</button>
 <p>Total taps: <span id="taps">0</span></p>
+
+<div class="panel">
+<h2>🏆 LEVEL SYSTEM</h2>
+<div class="level" id="level">Level 1</div>
+<p id="levelMessage" class="small"></p>
+<div class="progress">
+<div class="progressFill" id="progressFill"></div>
+</div>
+<p id="progressText"></p>
+<div id="levelList"></div>
+</div>
 
 <div class="panel">
 <h2>🎁 Daily Login Rewards</h2>
@@ -42,34 +61,54 @@ button{border:0;border-radius:12px;padding:13px;margin:7px;font-size:15px;font-w
 <p class="small">Invite friends and collect bonus coins!</p>
 <p>Your referral code:</p>
 <h2 id="refCode" style="color:#ffd447"></h2>
-<button class="blue" onclick="shareReferral()">Share Referral Link</button>
-<p>Demo referrals: <b id="refCount">0</b> / 5</p>
-<p id="refMessage" class="small">Invite 5 friends to earn 200 KCoins!</p>
-<button class="gold" onclick="addDemoReferral()">+ Add Demo Friend</button>
+
+<button class="blue" onclick="copyReferral()">📋 Copy Referral Link</button>
+<button class="gold" onclick="shareReferral()">Share Referral Link</button>
+
+<p>Referral bonus: <b>2,000 KCoins</b></p>
+<p>Verified referrals: <b id="refCount">0</b></p>
+<p class="small" id="refMessage">
+Invite friends! Referral rewards require bot verification.
+</p>
 </div>
 
-<p class="small">KCoins are virtual game points and have no cash value.</p>
-<button onclick="resetGame()" style="background:#604b7f;color:white">Reset Game</button>
+<p class="small">
+KCoins are virtual game points and have no cash value.
+</p>
+
+<button onclick="resetGame()" style="background:#604b7f;color:white">
+Reset Game
+</button>
+
 </div>
 
 <script>
 const rewards=[10,20,30,40,50,60,100];
+
+const levels=[
+5000,10000,20000,40000,
+80000,150000,300000,1000000
+];
+
+const BOT="KCoinrush2026bot";
 
 let balance=Number(localStorage.getItem("kc_balance"))||0;
 let taps=Number(localStorage.getItem("kc_taps"))||0;
 let streak=Number(localStorage.getItem("kc_streak"))||0;
 let lastClaim=localStorage.getItem("kc_last_claim")||"";
 let referrals=Number(localStorage.getItem("kc_referrals"))||0;
-let referralPaid=localStorage.getItem("kc_referral_paid")==="yes";
 
 let referralCode=localStorage.getItem("kc_ref_code");
+
 if(!referralCode){
  referralCode="KC"+Math.random().toString(36).substring(2,8).toUpperCase();
  localStorage.setItem("kc_ref_code",referralCode);
 }
 
 function dateString(date=new Date()){
- return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+ return date.getFullYear()+"-"+
+ String(date.getMonth()+1).padStart(2,"0")+"-"+
+ String(date.getDate()).padStart(2,"0");
 }
 
 function save(){
@@ -78,35 +117,82 @@ function save(){
  localStorage.setItem("kc_streak",streak);
  localStorage.setItem("kc_last_claim",lastClaim);
  localStorage.setItem("kc_referrals",referrals);
- localStorage.setItem("kc_referral_paid",referralPaid?"yes":"no");
+}
+
+function getLevel(){
+ return levels.findIndex(target=>balance<target);
 }
 
 function render(){
- document.getElementById("balance").textContent=balance;
- document.getElementById("taps").textContent=taps;
+ document.getElementById("balance").textContent=balance.toLocaleString();
+ document.getElementById("taps").textContent=taps.toLocaleString();
  document.getElementById("streak").textContent=streak;
  document.getElementById("refCode").textContent=referralCode;
  document.getElementById("refCount").textContent=referrals;
 
+ // LEVEL SYSTEM
+ const index=getLevel();
+ const current=index===-1?7:index;
+ const previous=current===0?0:levels[current-1];
+ const target=levels[current];
+
+ document.getElementById("level").textContent=
+ index===-1?"🏆 MAX LEVEL 8":"LEVEL "+(current+1);
+
+ if(index===-1){
+  document.getElementById("levelMessage").textContent=
+  "Congratulations! You reached 1 MILLION coins!";
+  document.getElementById("progressFill").style.width="100%";
+  document.getElementById("progressText").textContent=
+  "1,000,000 / 1,000,000";
+ }else{
+  const progress=Math.max(0,Math.min(100,
+  ((balance-previous)/(target-previous))*100));
+
+  document.getElementById("levelMessage").textContent=
+  "Next target: "+target.toLocaleString()+" coins";
+
+  document.getElementById("progressFill").style.width=progress+"%";
+
+  document.getElementById("progressText").textContent=
+  balance.toLocaleString()+" / "+target.toLocaleString()+" coins";
+ }
+
+ document.getElementById("levelList").innerHTML=
+ levels.map((amount,i)=>{
+ const completed=balance>=amount;
+ return `<div class="row">
+ <span>${completed?"✅":"🔒"} Level ${i+1}</span>
+ <span>${amount.toLocaleString()} coins</span>
+ </div>`;
+ }).join("");
+
+ // DAILY REWARDS
  const today=dateString();
  const yesterday=dateString(new Date(Date.now()-86400000));
  const claimed=lastClaim===today;
- const nextDay=claimed?streak:(lastClaim===yesterday?Math.min(streak+1,7):1);
+ const nextDay=claimed?streak:
+ (lastClaim===yesterday?Math.min(streak+1,7):1);
 
  const claimButton=document.getElementById("claimButton");
  claimButton.disabled=claimed;
- claimButton.textContent=claimed?"Reward Claimed ✓":"Claim Daily Reward";
+ claimButton.textContent=claimed?
+ "Reward Claimed ✓":"Claim Daily Reward";
  claimButton.style.opacity=claimed?"0.5":"1";
- document.getElementById("dailyMessage").textContent=
- claimed?"Come back tomorrow!":"Today's reward: "+rewards[nextDay-1]+" KCoins";
 
- document.getElementById("rewardList").innerHTML=rewards.map((amount,i)=>
- `<div class="row"><span>Day ${i+1}</span><span>${amount} KCoins</span></div>`
- ).join("");
+ document.getElementById("dailyMessage").textContent=
+ claimed?"Come back tomorrow!":
+ "Today's reward: "+rewards[nextDay-1]+" KCoins";
+
+ document.getElementById("rewardList").innerHTML=
+ rewards.map((amount,i)=>
+ `<div class="row">
+ <span>Day ${i+1}</span>
+ <span>${amount} KCoins</span>
+ </div>`).join("");
 
  document.getElementById("refMessage").textContent=
- referralPaid?"🏆 Referral reward collected!":
- referrals>=5?"🎉 You reached 5 demo referrals!":"Invite "+(5-referrals)+" more demo friends!";
+ "Each verified new player earns you 2,000 coins. Bot verification is required.";
 }
 
 function tapCoin(){
@@ -119,34 +205,44 @@ function tapCoin(){
 function claimDaily(){
  const today=dateString();
  if(lastClaim===today)return;
+
  const yesterday=dateString(new Date(Date.now()-86400000));
  streak=lastClaim===yesterday?Math.min(streak+1,7):1;
  balance+=rewards[streak-1];
  lastClaim=today;
+
  save();
  render();
 }
 
-function addDemoReferral(){
- if(referrals>=5 || referralPaid)return;
- referrals++;
- if(referrals===5){
-  balance+=200;
-  referralPaid=true;
- }
- save();
- render();
+function getReferralLink(){
+ return "https://t.me/"+BOT+"?start=ref_"+referralCode;
 }
 
-function shareReferral(){
- const link=location.href.split("?")[0]+"?ref="+referralCode;
- const message="Join my KCoinRush game! "+link;
- if(navigator.share){
-  navigator.share({title:"KCoinRush",text:message,url:link}).catch(()=>{});
- }else if(navigator.clipboard){
-  navigator.clipboard.writeText(message).then(()=>alert("Referral link copied!"));
- }else{
+async function copyReferral(){
+ const link=getReferralLink();
+
+ try{
+  await navigator.clipboard.writeText(link);
+  alert("Referral link copied! Share it with friends.");
+ }catch(e){
   prompt("Copy your referral link:",link);
+ }
+}
+
+async function shareReferral(){
+ const link=getReferralLink();
+
+ if(navigator.share){
+  try{
+   await navigator.share({
+    title:"KCoinRush",
+    text:"Join KCoinRush and play with me!",
+    url:link
+   });
+  }catch(e){}
+ }else{
+  copyReferral();
  }
 }
 
@@ -156,6 +252,276 @@ function resetGame(){
  taps=0;
  save();
  render();
+}
+
+if(window.Telegram && window.Telegram.WebApp){
+ window.Telegram.WebApp.ready();
+ window.Telegram.WebApp.expand();
+}
+
+render();
+</script>
+</body>
+ </html>
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KCoinRush</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:22px 14px;background:linear-gradient(145deg,#160d35,#32105c);color:white;font-family:Arial;text-align:center}
+.container{max-width:430px;margin:auto;background:#211344;padding:22px 16px;border-radius:22px;box-shadow:0 10px 35px #09051c}
+h1{color:#ffd447}
+.balance{font-size:27px;font-weight:bold;color:#ffd447;margin:20px}
+.coin{width:165px;height:165px;border-radius:50%;border:7px solid #fff0a0;background:radial-gradient(circle,#fff4a3,#ffb900,#d47a00);color:#713600;font-size:55px;font-weight:bold}
+button{border:0;border-radius:12px;padding:13px;margin:7px;font-size:15px;font-weight:bold;cursor:pointer}
+.gold{background:#ffd447;color:#32105c;width:100%}
+.blue{background:#5279ff;color:white;width:100%}
+.panel{margin-top:22px;padding:16px;background:#342258;border-radius:15px}
+.small{font-size:13px;color:#c9bedf}
+.row{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid #594779}
+.progress{height:13px;background:#594779;border-radius:20px;overflow:hidden;margin:12px 0}
+.progressFill{height:100%;width:0;background:#ffd447;transition:width .3s}
+.level{color:#ffd447;font-size:22px;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🪙 KCoinRush</h1>
+<p>Tap, collect and enjoy the game!</p>
+
+<div class="balance">
+Balance: <span id="balance">0</span> KCoins
+</div>
+
+<button class="coin" onclick="tapCoin()">K</button>
+<p>Total taps: <span id="taps">0</span></p>
+
+<div class="panel">
+<h2>🏆 LEVEL SYSTEM</h2>
+<div class="level" id="level">Level 1</div>
+<p id="levelMessage" class="small"></p>
+<div class="progress">
+<div class="progressFill" id="progressFill"></div>
+</div>
+<p id="progressText"></p>
+<div id="levelList"></div>
+</div>
+
+<div class="panel">
+<h2>🎁 Daily Login Rewards</h2>
+<p>Streak: <b id="streak">0</b> days</p>
+<button class="gold" id="claimButton" onclick="claimDaily()">Claim Daily Reward</button>
+<p id="dailyMessage" class="small"></p>
+<div id="rewardList"></div>
+</div>
+
+<div class="panel">
+<h2>👥 Referral Program</h2>
+<p class="small">Invite friends and collect bonus coins!</p>
+<p>Your referral code:</p>
+<h2 id="refCode" style="color:#ffd447"></h2>
+
+<button class="blue" onclick="copyReferral()">📋 Copy Referral Link</button>
+<button class="gold" onclick="shareReferral()">Share Referral Link</button>
+
+<p>Referral bonus: <b>2,000 KCoins</b></p>
+<p>Verified referrals: <b id="refCount">0</b></p>
+<p class="small" id="refMessage">
+Invite friends! Referral rewards require bot verification.
+</p>
+</div>
+
+<p class="small">
+KCoins are virtual game points and have no cash value.
+</p>
+
+<button onclick="resetGame()" style="background:#604b7f;color:white">
+Reset Game
+</button>
+
+</div>
+
+<script>
+const rewards=[10,20,30,40,50,60,100];
+
+const levels=[
+5000,10000,20000,40000,
+80000,150000,300000,1000000
+];
+
+const BOT="KCoinrush2026bot";
+
+let balance=Number(localStorage.getItem("kc_balance"))||0;
+let taps=Number(localStorage.getItem("kc_taps"))||0;
+let streak=Number(localStorage.getItem("kc_streak"))||0;
+let lastClaim=localStorage.getItem("kc_last_claim")||"";
+let referrals=Number(localStorage.getItem("kc_referrals"))||0;
+
+let referralCode=localStorage.getItem("kc_ref_code");
+
+if(!referralCode){
+ referralCode="KC"+Math.random().toString(36).substring(2,8).toUpperCase();
+ localStorage.setItem("kc_ref_code",referralCode);
+}
+
+function dateString(date=new Date()){
+ return date.getFullYear()+"-"+
+ String(date.getMonth()+1).padStart(2,"0")+"-"+
+ String(date.getDate()).padStart(2,"0");
+}
+
+function save(){
+ localStorage.setItem("kc_balance",balance);
+ localStorage.setItem("kc_taps",taps);
+ localStorage.setItem("kc_streak",streak);
+ localStorage.setItem("kc_last_claim",lastClaim);
+ localStorage.setItem("kc_referrals",referrals);
+}
+
+function getLevel(){
+ return levels.findIndex(target=>balance<target);
+}
+
+function render(){
+ document.getElementById("balance").textContent=balance.toLocaleString();
+ document.getElementById("taps").textContent=taps.toLocaleString();
+ document.getElementById("streak").textContent=streak;
+ document.getElementById("refCode").textContent=referralCode;
+ document.getElementById("refCount").textContent=referrals;
+
+ // LEVEL SYSTEM
+ const index=getLevel();
+ const current=index===-1?7:index;
+ const previous=current===0?0:levels[current-1];
+ const target=levels[current];
+
+ document.getElementById("level").textContent=
+ index===-1?"🏆 MAX LEVEL 8":"LEVEL "+(current+1);
+
+ if(index===-1){
+  document.getElementById("levelMessage").textContent=
+  "Congratulations! You reached 1 MILLION coins!";
+  document.getElementById("progressFill").style.width="100%";
+  document.getElementById("progressText").textContent=
+  "1,000,000 / 1,000,000";
+ }else{
+  const progress=Math.max(0,Math.min(100,
+  ((balance-previous)/(target-previous))*100));
+
+  document.getElementById("levelMessage").textContent=
+  "Next target: "+target.toLocaleString()+" coins";
+
+  document.getElementById("progressFill").style.width=progress+"%";
+
+  document.getElementById("progressText").textContent=
+  balance.toLocaleString()+" / "+target.toLocaleString()+" coins";
+ }
+
+ document.getElementById("levelList").innerHTML=
+ levels.map((amount,i)=>{
+ const completed=balance>=amount;
+ return `<div class="row">
+ <span>${completed?"✅":"🔒"} Level ${i+1}</span>
+ <span>${amount.toLocaleString()} coins</span>
+ </div>`;
+ }).join("");
+
+ // DAILY REWARDS
+ const today=dateString();
+ const yesterday=dateString(new Date(Date.now()-86400000));
+ const claimed=lastClaim===today;
+ const nextDay=claimed?streak:
+ (lastClaim===yesterday?Math.min(streak+1,7):1);
+
+ const claimButton=document.getElementById("claimButton");
+ claimButton.disabled=claimed;
+ claimButton.textContent=claimed?
+ "Reward Claimed ✓":"Claim Daily Reward";
+ claimButton.style.opacity=claimed?"0.5":"1";
+
+ document.getElementById("dailyMessage").textContent=
+ claimed?"Come back tomorrow!":
+ "Today's reward: "+rewards[nextDay-1]+" KCoins";
+
+ document.getElementById("rewardList").innerHTML=
+ rewards.map((amount,i)=>
+ `<div class="row">
+ <span>Day ${i+1}</span>
+ <span>${amount} KCoins</span>
+ </div>`).join("");
+
+ document.getElementById("refMessage").textContent=
+ "Each verified new player earns you 2,000 coins. Bot verification is required.";
+}
+
+function tapCoin(){
+ balance++;
+ taps++;
+ save();
+ render();
+}
+
+function claimDaily(){
+ const today=dateString();
+ if(lastClaim===today)return;
+
+ const yesterday=dateString(new Date(Date.now()-86400000));
+ streak=lastClaim===yesterday?Math.min(streak+1,7):1;
+ balance+=rewards[streak-1];
+ lastClaim=today;
+
+ save();
+ render();
+}
+
+function getReferralLink(){
+ return "https://t.me/"+BOT+"?start=ref_"+referralCode;
+}
+
+async function copyReferral(){
+ const link=getReferralLink();
+
+ try{
+  await navigator.clipboard.writeText(link);
+  alert("Referral link copied! Share it with friends.");
+ }catch(e){
+  prompt("Copy your referral link:",link);
+ }
+}
+
+async function shareReferral(){
+ const link=getReferralLink();
+
+ if(navigator.share){
+  try{
+   await navigator.share({
+    title:"KCoinRush",
+    text:"Join KCoinRush and play with me!",
+    url:link
+   });
+  }catch(e){}
+ }else{
+  copyReferral();
+ }
+}
+
+function resetGame(){
+ if(!confirm("Reset game progress?"))return;
+ balance=0;
+ taps=0;
+ save();
+ render();
+}
+
+if(window.Telegram && window.Telegram.WebApp){
+ window.Telegram.WebApp.ready();
+ window.Telegram.WebApp.expand();
 }
 
 render();
